@@ -1,12 +1,14 @@
 #ifndef UTIL_H
 #define UTIL_H
 
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
 // This is not my code: https://stackoverflow.com/questions/6127503/shuffle-array-in-c
-static void shuffle(void *array, size_t n, size_t size) {
-    char tmp[size];
+// TODO: malloc really is not necessary since I am always using this for the same reason.
+static inline void shuffle(void *array, size_t n, size_t size) {
+    char* tmp = malloc(size * sizeof(char)); // This had to change as the source I believe was using 
     char *arr = array;
     size_t stride = size * sizeof(char);
 
@@ -21,11 +23,7 @@ static void shuffle(void *array, size_t n, size_t size) {
             memcpy(arr + i * stride, tmp, size);
         }
     }
-}
-
-static int sgn(const int val)
-{
-    return (val > 0) - (val < 0);
+    free(tmp); // Of course need to free memory
 }
 
 #endif //UTIL_H

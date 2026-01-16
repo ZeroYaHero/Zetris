@@ -1,16 +1,40 @@
-#ifndef BLOCKS_H
-#define BLOCKS_H
-
-#define BLOCK_COUNT             7
-#define BLOCK_ROTATION_STATES   4
-#define BLOCK_ROTATION_TESTS    5
-#define BLOCK_SIZE              4
-#define BLOCK_CELL_COUNT        4
+#ifndef PIECE_H
+#define PIECE_H
 
 #include <stdint.h>
 #include <stdbool.h>
 
-typedef enum : uint8_t {
+#define PIECE_COUNT                 7
+#define PIECE_ROTATION_DIRECTIONS   2
+#define PIECE_ROTATION_STATES       4
+#define PIECE_ROTATION_TESTS        5
+#define PIECE_MAX_SIZE              4
+#define PIECE_CELL_COUNT            4
+
+// Pack a Vector2 (of minimum -8 and maximum +7) into a byte. Useful for wall-kicks as they never surpass -2 or +2.
+#define PACK_XY(x, y) \
+    ( (uint8_t) ( ( ( (x) & 0x0F ) << 4 ) | ( (y) & 0x0F ) ) )
+
+// Unpack the X component from a byte packed wall-kick.
+#define UNPACK_X(xy) \
+    ( ( ( ( wall_kick >> 4 ) & 0x0F ) ^ 0b1000 ) - 0b1000 )
+
+// Unpack the Y component from a byte packed wall-kick.
+#define UNPACK_Y(xy) \
+    ( ( ( wall_kick & 0x0F ) ^ 0b1000 ) - 0b1000 );
+
+/**
+    ^
+    Found this doing some searching to extend the sign : https://stackoverflow.com/questions/5814072/sign-extend-a-nine-bit-number-in-c
+    This lead me to this: https://graphics.stanford.edu/~seander/bithacks.html#FixedSignExtend
+    Super neat. Essentially what it does is get the MSB (sign), XOR with the value to remove the sign, and then subtract it to get it to become negative.
+    This is known as Sign Extension (or SEXT...)
+    Sign extension is normally done automatically for 8 bit to 16 bit, 16 to 32, etc.
+    Because there is no such thing as a 4 bit (nibble, non addressable), we have to do it manually!
+*/
+
+// Intended to be used for coloring (or debugging).
+typedef enum {
     I_TYPE = 1,
     O_TYPE,
     T_TYPE,
@@ -18,74 +42,91 @@ typedef enum : uint8_t {
     Z_TYPE,
     J_TYPE,
     L_TYPE
-} BlockType;
+} PieceType; // Probably 8 bits.
 
-typedef enum : uint8_t {
+// Used for collision checks and rotating. 
+typedef enum {
     NONE_2X2 = 2,
     ROT_3X3,
     ROT_4X4
-} RotationSize;
+} PieceSize; // Probably 8 bits.
 
-// https://stackoverflow.com/questions/14808908/pointer-to-2d-arrays-in-c
-// Following this post, I like the strategy of using a typedef for easier pointers to 2D arrays. 
-typedef uint8_t     PackedWallKicksData[8][4];
-typedef uint16_t    BlockCells;
+typedef uint16_t        PieceCells; // Type-alias for piece cells into a 4x4 bit matrix (16 bit unsigned int). Read from LSB to MSB.
+typedef uint8_t         WallKick;   // Type-alias for wall-kick packed into 8 bit unsigned int.     
+typedef WallKick        PieceRotationWallKicks[PIECE_ROTATION_STATES * PIECE_ROTATION_DIRECTIONS][PIECE_ROTATION_TESTS - 1]; 
+// I like the strategy of type-aliasing for 2d array pointers: https://stackoverflow.com/questions/14808908/pointer-to-2d-arrays-in-c
 
-typedef struct {                          // Block struct for pieces. Cells are LSB -> MSB.
-    BlockCells cells;                     // 16 bit (2 byte)
-    BlockType blockType;                  // 8 bit
-    RotationSize rotSize;                 // 8 bit  (1 byte)
-    const PackedWallKicksData* wallKicksData;   // 8 bit  (1 byte)
-} BlockComponent;                         // Total: 40 bits (1 byte)
+PieceCells  get_rotated_piece_cells(PieceCells in_cells, PieceSize size, bool clockwise); // Rotate given cells of a block clockwise or counter clockwise.
+bool        is_piece_cell(PieceCells cells, uint8_t pos_x, uint8_t pos_y);
 
-typedef struct {                    // Block that exists only within playfield.
-    BlockComponent component;       // 48 bit
-    uint8_t x;                      // 8 bit
-    uint8_t y;                      // 8 bit
-    uint8_t rotState;               // 8 bit
-} BlockEntity;                      // Total: 104 bits (13 bytes)
+extern const PieceRotationWallKicks WALL_KICKS_TSZJL;
+extern const PieceRotationWallKicks WALL_KICKS_I;
 
-typedef struct {
-    int8_t x;           // 8 bit
-    int8_t y;           // 8 bit
-} UnpackedWallKickXY;     // Total: 16 bit (1 byte)
+typedef struct {                                        // This is where the cells, type, size, as well as pointer to the proper rotation wall-kicks are stored (since all piece but 'I' share the same). 
+    const PieceRotationWallKicks* rotation_wall_kicks;  // 4-8 bytes
+    PieceCells cells;                                   // 2 bytes
+    PieceType type;                                     // 1 byte
+    PieceSize size;                                     // 1 byte
+} PieceData; 
 
-extern const BlockComponent I_COMPONENT;
-extern const BlockComponent O_COMPONENT;
-extern const BlockComponent T_COMPONENT;
-extern const BlockComponent S_COMPONENT;
-extern const BlockComponent Z_COMPONENT;
-extern const BlockComponent J_COMPONENT;
-extern const BlockComponent L_COMPONENT;
+extern const PieceData I_DATA;  
+extern const PieceData O_DATA;
+extern const PieceData T_DATA;
+extern const PieceData S_DATA;
+extern const PieceData Z_DATA;
+extern const PieceData J_DATA;
+extern const PieceData L_DATA;
+extern const PieceData* ALL_PIECE_DATA[PIECE_COUNT];
 
-extern const BlockComponent* ALL_BLOCK_COMPONENTS[BLOCK_COUNT];
+const PieceData* get_piece_data(PieceType piece_type);
 
-/**  How Wall Kicks Work:
-    1. The first rotation is a 0,0 offset, so each block tests 4 wall kicks after basic rotation failure.
-    2. A rotation to the left is a decrease in current rotation index.
-    3. A rotation to the right is a increase in the current rotation index.
-    4. Rotation index is calculated using bitwise and to get remainder of index and the direction: (index + 4 +- direction) & 3
-    5. If the direction is negative (counter clockwise, left), we use the index * 2.
-    6. If it is positive (clockwise, right), we use index * 2 + 1.
-    7. A wall kick has and X and Y offsets. This is encoded into a single byte,
-    with the X component MSB aligned with the bytes MSB, and the Y component LSB aligned with the bytes LSB.
-    0bXXXXYYYY
-    8. Wall kicks at least are -2 and at most are +2. Negatives are accounted for using twos complement.
-    9. Tests are traversed via 2nd array index.
+typedef struct {                                        // Piece entity (container for data, transform, and lock components)
+    const PieceRotationWallKicks* rotation_wall_kicks;  // 4-8 bytes
+	float velo_x;                                       // 4 bytes
+	float velo_y;                                       // 4 bytes
+    float timer;                                        // 4 bytes
+	PieceCells cells;                                   // 2 bytes
+	PieceType type;                                     // 1 byte
+	PieceSize size;                                     // 1 byte
+	uint8_t rotation;                                   // 1 byte
+	uint8_t pos_x;                                      // 1 byte
+	uint8_t pos_y;                                      // 1 byte
+	uint8_t moves;                                      // 1 byte
+	bool on_ground;                                     // 1 byte
+} Piece;
+
+// PieceData related functions.
+void copy_data_into_piece(Piece* piece, PieceData* piece_data);
+// PieceTransform related functions.
+void set_piece_position(Piece* piece, uint8_t x, uint8_t y);
+void reset_piece_velocity(Piece* piece);
+void reset_piece_transform(Piece* piece);
+// PieceLock related functions.
+void reset_piece_lock(Piece* piece);
+
+/**  
+    How Wall Kicks Work:
+    - A piece has 4 states of rotation. They are identified by the following: '0', 'R', '2', and 'L'. 
+        - A piece can get to 'L' by one *left* rotation, OR by three *right* rotations. Same can be said for '2' with two *left* or two *right*.
+    - A piece keeps track of a rotation index which is a number 1-4, but the wall-kick tests are within indices of 0-7.
+        - The reason for the larger range for wall-kicks is because they are determined by a directed graph.
+        - In example, we are in state '0', and intend to make a *left* rotation. That is the edge '0->L'.
+        - To get the proper wall-kick for that edge, we multiply our rotation index by two, and add nothing if we are turning *left*, or add one if we are turning *right*.
+        - This is the reason PieceRotationWallKicks are a 2D array of row size 8.
+    - Once a piece is rotated, cell collision should be checked. (Cell collision can also be outside of bounds).
+        - If cell collision, go through 4 wall-kick tests given the above adjusted rotation index until no cell collision.
+    - Wall-kicks are packed into an 8 bit unsigned int, so they are properly unpacked first.
+    - Wall-kicks describe position adjustments to the piece.
+    - If there is no rotation that can be made, no rotation is made (simple as that!)
+    - If there is a rotation that can be made, we write to our piece's rotation index: (index + 4 +- direction) & 3
 */
-
-extern const PackedWallKicksData WALL_KICKS_TSZJL;
-extern const PackedWallKicksData WALL_KICKS_I;
-
-BlockCells          RotateBlockCells(BlockCells inCells, RotationSize rotSize, bool clockwise);   // Rotate given cells of a block clockwise or counter clockwise.
-UnpackedWallKickXY  UnpackWallKickXY(uint8_t packedWallKickXY);
 
 #ifdef DEBUG
 #include <stdio.h>
 extern const char* STATES;
-void        PrintCells(uint16_t cells);                                                 // Print a block using puts(). Used for debugging purposes.
-void        PrintAllBlockRotations();                                                   // Print all blocks and their rotations.
-void        PrintAllWallKicks();
+void        print_cells(PieceCells cells);    // Print a block using puts(). Used for debugging purposes.
+void        print_all_piece_rotations();    // Print all blocks and their rotations.
+void        print_all_wall_kicks();
 #endif // DEBUG
 
-#endif // BLOCKS_H
+#endif // PIECE_H

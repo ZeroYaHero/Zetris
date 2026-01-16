@@ -3,13 +3,6 @@
 
 #include <stdint.h>
 
-#include "game.h"
-#include "action.h"
-
-void GameLoop();
-
-uint8_t GetActionBitFlags();
-
-void RenderFrame(const Game* game);
+void game_loop();
 
 #endif //ENGINE_H

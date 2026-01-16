@@ -1,98 +1,35 @@
 #ifndef PLAYFIELD_H
 #define PLAYFIELD_H
 
-#define HIDDEN_ROW_COUNT            4
-#define VISIBLE_ROW_COUNT           16
-#define HIDDEN_COLUMN_COUNT         1
-#define VISIBLE_COLUMN_COUNT        10
-#define MAX_ROW_COLUMN_COUNT        32
+// Defaults
+#define DEFAULT_ROW_COUNT           20
+#define DEFAULT_COLUMN_COUNT        10
+#define DEFAULT_CEILING             4
+// Limits
+#define COLUMN_OFFSET               2
+#define MAX_ROW_COUNT               32
+#define MAX_COLUMN_COUNT            (32 - COLUMN_OFFSET)
 
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "blocks.h"
+typedef uint32_t PlayfieldCells[MAX_ROW_COUNT];
 
-typedef uint32_t PlayfieldCells[MAX_ROW_COLUMN_COUNT];
-
+// Contains the locked/static cells in the playfield, as well as some "boundaries."
 typedef struct {
-    PlayfieldCells cells;               // 32 * 32 = 1024 bits (4 * 32 = 128 bytes)
-    BlockEntity activeBlock;           // 104 bit (13 bytes)
-    uint8_t rowCount;                   // 8 bit (1 byte)
-    uint8_t columnCount;                // 8 bit (1 byte)
-} Playfield;                            // Total: 1152 bits (144 bytes)
+    PlayfieldCells cells;       // 4 * MAX_ROW_COLUMN_COUNT
+    uint32_t lines_cleared;     // 4 bytes
+    uint8_t row_count;          // 1 byte
+    uint8_t column_count;       // 1 byte
+    uint8_t ceiling;            // 1 byte
+} Playfield;
 
-void SetActiveBlockComponent(
-    Playfield* playfield,
-    BlockComponent* inComponent
-);
-
-bool AttemptWriteBlockRotation(
-    Playfield* playfield,
-    BlockEntity* inBlock,
-    bool clockwise
-);
-
-bool AttemptWriteBlockMoveX(
-    Playfield* playfield,
-    BlockEntity* inBlock,
-    bool positive
-);
-
-bool AttemptWriteBlockMoveY(
-    Playfield* playfield,
-    BlockEntity* inBlock,
-    bool positive
-);
-
-// This really should not be used. It is more just a way to do X and Y without rewriting the same code.
-bool AttemptWriteBlockMove(
-    Playfield* playfield,
-    BlockEntity* inBlock,
-    int8_t inX,
-    int8_t inY
-);
-
-bool AttemptWriteBlockHardDrop(
-    Playfield* playfield,
-    BlockEntity* inBlock
-);
-
-bool IsOutsideBounds(
-    Playfield* playfield,
-    int inX,
-    int inY
-);
-
-bool IsOnGround(
-    Playfield* playfield,
-    BlockCells inCells,
-    uint8_t inSize,
-    uint8_t inX,
-    uint8_t inY
-);
-
-bool AreCellsColliding(
-    Playfield* playfield,
-    BlockCells inCells,
-    uint8_t inSize,
-    uint8_t inX,
-    uint8_t inY
-);
-
-// Will write if cells collide or are outside playfield bounds (hence the "force),
-// but you don't have to worry about integer underflow, overflow, or segfault.
-void ForceWriteBlockInPlayfield(
-    Playfield* playfield,
-    BlockEntity* inBlock
-);
-
-uint8_t ClearRows(
-    Playfield* playfield,
-    uint8_t inYOffset
-);
-
-bool AreCellsAboveLine(
-    Playfield* playfield
-);
+//bool    is_position_outside_bounds(Playfield* playfield, uint8_t pos_x, uint8_t pos_y);
+bool    is_outside_bounds(Playfield* playfield, uint8_t, uint8_t pos_y); // is_position_outside_bounds but slightly stricter.
+bool    is_playfield_cell(Playfield* playfield, uint8_t pos_x, uint8_t pos_y);
+bool    are_cells_above_ceiling(Playfield* playfield); // Determines if cells in the playfield are above the ceiling.
+void    attempt_add_playfield_cell_at(Playfield* playfield, uint8_t pos_x, uint8_t pos_y);
+uint8_t clear_filled_rows(Playfield* playfield, uint8_t bottom_offset); // Starts from bottom and moves up to clear rows. Returns the number of rows it cleared for given playfield.
+uint8_t get_piece_spawn_x(Playfield* playfield);
 
 #endif // PLAYFIELD_H

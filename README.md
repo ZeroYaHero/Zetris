@@ -1,6 +1,10 @@
 <div align="center">
 
-<img src="ZETRIS.png" width="384">
+<img src="ZETRIS_LOGO.png" width="384">
+
+# Zetris
+
+<img src="ZETRIS_GAME.png" width="512">
 
 </div>
 
@@ -14,14 +18,14 @@ You can move horizontally, drop, or rotate each block as its falling. You can ev
 - Playfield is (at max) a 32 element array of 32 bit integers
 - Bitwise math is done to check for collisions
 - In order to run the same independent of framerate, deltaTime is used with x and y accumulators to allow for "half" cell velocities.
-- There is a terminal & raylib version. Only the raylib version "works." But it is rough!
+- There is a terminal & raylib version. Only the raylib version works right now. Some more effort needs to go into the rendering and input.
 
 
 ## Clone, Build & Run
 
 ### Clone
 ```
-git clone
+git clone https://github.com/ZeroYaHero/Zetris.git
 ```
 Navigate to repository:
 ```

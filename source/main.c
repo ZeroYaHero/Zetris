@@ -2,8 +2,6 @@
 #include <stdlib.h>
 #include <time.h>
 
-#include "engine.h"
-
 int main(int argc, char* argv[])
 {
     #ifdef DEBUG
@@ -12,5 +10,5 @@ int main(int argc, char* argv[])
     #endif // DEBUG
 
     srand(time(NULL)); // Seed with argument if given
-    GameLoop();
+    game_loop();
 }
