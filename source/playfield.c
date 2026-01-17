@@ -21,17 +21,20 @@ bool are_cells_above_ceiling(const Playfield* const playfield)
 	return false;
 }
 
-void attempt_add_playfield_cell_at(Playfield* playfield, const uint8_t pos_x, const uint8_t pos_y)
+bool attempt_add_playfield_cell_at(Playfield* playfield, const uint8_t pos_x, const uint8_t pos_y)
 {
 	if (!is_outside_bounds(playfield, pos_x, pos_y))
 	{
 		playfield->cells[pos_y] |= (1U << (pos_x - COLUMN_OFFSET));
+        return true;
 	}
+    return false;
 }
 
-uint8_t clear_filled_rows(Playfield* playfield, const uint8_t pos_y)
+// TODO: Change this to filled lines (or others to filled rows).
+uint8_t clear_filled_lines(Playfield* playfield, const uint8_t pos_y)
 {
-    uint8_t y = (pos_y >= playfield->row_count) ? playfield->row_count - 1 : pos_y;
+    uint8_t y = (pos_y > playfield->row_count) ? playfield->row_count : pos_y;
 
     const uint32_t mask = (1U << playfield->column_count) - 1;
     uint8_t rows_cleared = 0;
@@ -47,5 +50,11 @@ uint8_t clear_filled_rows(Playfield* playfield, const uint8_t pos_y)
             playfield->cells[y - 1] = 0;
         }
     }
+    playfield->lines_cleared += rows_cleared;
     return rows_cleared;
 }
+
+//bool are_playfield_row_cells_colliding(Playfield* playfield, uint32_t row_cells, uint8_t pos_x, uint8_t pos_y)
+//{
+//    return (playfield->cells[pos_y] >> (pos_x - COLUMN_OFFSET)) & row_cells;
+//}

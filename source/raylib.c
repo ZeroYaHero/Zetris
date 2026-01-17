@@ -3,15 +3,24 @@
 #include "game.h"
 #include "engine.h"
 #include "raylib.h"
+#define RAYGUI_IMPLEMENTATION
+#include "raygui.h"
 
 #define SCREEN_WIDTH	800
 #define SCREEN_HEIGHT	450
-#define TARGET_FPS		60
+#define TARGET_FPS		240
 
-const int		CELL_SIZE = 20;
-const Vector2	CENTER_OF_SCREEN = { (float)SCREEN_WIDTH / 2, (float)SCREEN_HEIGHT / 2 };
-Vector2			SCREEN_START;
+const int		CELL_SIZE = 25;
+const Vector2	CENTER_OF_SCREEN = { SCREEN_WIDTH * 0.5f, SCREEN_HEIGHT * 0.5f};
+const Vector2	HELD_PIECE_SIZE = { 200.0f, 200.0f };
+const Vector2	PIECE_QUEUE_SIZE = { 200.0f, 200.0f };
+const Vector2	PAUSE_CONTINUE_BUTTON_SIZE = { 250.0f, 125.0f };
+Vector2			PLAYFIELD_START;
 Vector2			PLAYFIELD_SIZE; 
+Vector2			HELD_PIECE_START;
+Vector2			PIECE_QUEUE_START;
+bool			isPaused = false;
+bool			pressedEscapeLastTick = false;
 //uint8_t PIECE_BUFFER[VISIBLE_ROW_COUNT][VISIBLE_COLUMN_COUNT]; // TODO: colors
 
 uint8_t GetActionBitFlags()
@@ -27,55 +36,155 @@ uint8_t GetActionBitFlags()
 	return inputBitFlags;
 }
 
-void RenderFrame(const Game* game)
+void DrawPlayfieldAndPiece(const Game* game)
 {
-	BeginDrawing();
-		ClearBackground(BLACK);
-		DrawRectangle(SCREEN_START.x, SCREEN_START.y, PLAYFIELD_SIZE.x, PLAYFIELD_SIZE.y, DARKGRAY);
-		const int controlledBlockXOffset = game->controlled_piece.pos_x;
-		const int controlledBlockYOffset = game->controlled_piece.pos_y;
-		const int ghostBlockYOffset = game->controlled_piece_ground_y;
-		for (uint8_t y = game->playfield.ceiling; y < game->playfield.row_count; y++)
+	DrawRectangle(PLAYFIELD_START.x, PLAYFIELD_START.y, PLAYFIELD_SIZE.x, PLAYFIELD_SIZE.y, DARKGRAY);
+	const int controlledBlockXOffset = game->controlled_piece.pos_x;
+	const int controlledBlockYOffset = game->controlled_piece.pos_y;
+	const int ghostBlockYOffset = game->controlled_piece_ground_y;
+	for (uint8_t y = game->playfield.ceiling; y < game->playfield.row_count; y++)
+	{
+		const int controlledYAdjusted = y - controlledBlockYOffset;
+		const int ghostYAdjusted = y - ghostBlockYOffset;
+		for (uint8_t x = COLUMN_OFFSET; x < game->playfield.column_count + COLUMN_OFFSET; x++)
 		{
-			const int controlledYAdjusted = y - controlledBlockYOffset;
-			const int ghostYAdjusted = y - ghostBlockYOffset;
-			for (uint8_t x = COLUMN_OFFSET; x < game->playfield.column_count + COLUMN_OFFSET; x++)
+			const int controlledXAdjusted = x - controlledBlockXOffset;
+			if (controlledXAdjusted >= 0 && controlledXAdjusted < game->controlled_piece.size &&
+				controlledYAdjusted >= 0 && controlledYAdjusted < game->controlled_piece.size &&
+				is_piece_cell(game->controlled_piece.cells, controlledXAdjusted, controlledYAdjusted))
 			{
-				const int controlledXAdjusted = x - controlledBlockXOffset;
-				if (controlledXAdjusted >= 0 && controlledXAdjusted < game->controlled_piece.size &&
-					controlledYAdjusted >= 0 && controlledYAdjusted < game->controlled_piece.size &&
-					is_piece_cell(game->controlled_piece.cells, controlledXAdjusted, controlledYAdjusted))
+				DrawRectangle(PLAYFIELD_START.x + (x - COLUMN_OFFSET) * CELL_SIZE, PLAYFIELD_START.y + (y - game->playfield.ceiling) * CELL_SIZE, CELL_SIZE, CELL_SIZE, RED);
+			}
+			else if (controlledXAdjusted >= 0 && controlledXAdjusted < game->controlled_piece.size &&
+				ghostYAdjusted >= 0 && ghostYAdjusted < game->controlled_piece.size &&
+				is_piece_cell(game->controlled_piece.cells, controlledXAdjusted, ghostYAdjusted))
+			{
+				DrawRectangle(PLAYFIELD_START.x + (x - COLUMN_OFFSET) * CELL_SIZE, PLAYFIELD_START.y + (y - game->playfield.ceiling) * CELL_SIZE, CELL_SIZE, CELL_SIZE, ORANGE);
+			}
+			else if (is_playfield_cell(&game->playfield, x, y))
+			{
+				DrawRectangle(PLAYFIELD_START.x + (x - COLUMN_OFFSET) * CELL_SIZE, PLAYFIELD_START.y + (y - game->playfield.ceiling) * CELL_SIZE, CELL_SIZE, CELL_SIZE, YELLOW);
+			}
+		}
+	}
+}
+
+void DrawPieceQueue(const Game* game)
+{
+	DrawRectangle(PIECE_QUEUE_START.x, PIECE_QUEUE_START.y, PIECE_QUEUE_SIZE.x, PIECE_QUEUE_SIZE.y, GRAY);
+	PieceData* next_piece = top_piece_queue(game);
+	if (next_piece)
+	{
+		for (uint8_t y = 0; y < next_piece->size; y++)
+		{
+			for (uint8_t x = 0; x < next_piece->size; x++)
+			{
+				if (is_piece_cell(next_piece->cells, x, y))
 				{
-					DrawRectangle(SCREEN_START.x + (x - COLUMN_OFFSET) * CELL_SIZE, SCREEN_START.y + (y - game->playfield.ceiling) * CELL_SIZE, CELL_SIZE, CELL_SIZE, RED);
-				}
-				else if (controlledXAdjusted >= 0 && controlledXAdjusted < game->controlled_piece.size &&
-					ghostYAdjusted >= 0 && ghostYAdjusted < game->controlled_piece.size &&
-					is_piece_cell(game->controlled_piece.cells, controlledXAdjusted, ghostYAdjusted))
-				{
-					DrawRectangle(SCREEN_START.x + (x - COLUMN_OFFSET) * CELL_SIZE, SCREEN_START.y + (y - game->playfield.ceiling) * CELL_SIZE, CELL_SIZE, CELL_SIZE, ORANGE);
-				}
-				else if (is_playfield_cell(&game->playfield, x, y))
-				{
-					DrawRectangle(SCREEN_START.x + (x - COLUMN_OFFSET) * CELL_SIZE, SCREEN_START.y + (y - game->playfield.ceiling) * CELL_SIZE, CELL_SIZE, CELL_SIZE, YELLOW);
+					DrawRectangle(PIECE_QUEUE_START.x + (CELL_SIZE * x), PIECE_QUEUE_START.y + (CELL_SIZE * y), CELL_SIZE, CELL_SIZE, GREEN);
 				}
 			}
 		}
-	EndDrawing();
+	}
+}
+
+void DrawHeldPiece(const Game* game)
+{
+	DrawRectangle(HELD_PIECE_START.x, HELD_PIECE_START.y, HELD_PIECE_SIZE.x, HELD_PIECE_SIZE.y, GRAY);
+	if (game->held_piece)
+	{
+		for (uint8_t y = 0; y < game->held_piece->size; y++)
+		{
+			for (uint8_t x = 0; x < game->held_piece->size; x++)
+			{
+				if (is_piece_cell(game->held_piece->cells, x, y))
+				{
+					DrawRectangle(HELD_PIECE_START.x + (CELL_SIZE * x), HELD_PIECE_START.y + (CELL_SIZE * y), CELL_SIZE, CELL_SIZE, GREEN);
+				}
+			}
+		}
+	}
+}
+
+void RenderFrame(const Game* game)
+{
+	DrawFPS(0, 0);
+	ClearBackground(BLACK);
+	DrawRectangle(PLAYFIELD_START.x, PLAYFIELD_START.y, PLAYFIELD_SIZE.x, PLAYFIELD_SIZE.y, DARKGRAY);
+	DrawPlayfieldAndPiece(game);
+	DrawHeldPiece(game);
+	DrawPieceQueue(game);
+	// Level
+	DrawText(
+		TextFormat("Level: %d", game->level_index + 1),
+		PLAYFIELD_START.x + PLAYFIELD_SIZE.x,
+		PLAYFIELD_START.y + PIECE_QUEUE_SIZE.y,
+		20,
+		WHITE
+	);
+	// Score
+	DrawText(
+		TextFormat("Score: %d", game->score),
+		PLAYFIELD_START.x + PLAYFIELD_SIZE.x,
+		PLAYFIELD_START.y + PIECE_QUEUE_SIZE.y + 20,
+		20,
+		WHITE
+	);
+	// Lines Cleared
+	DrawText(
+		TextFormat("Lines Cleared: %d", game->playfield.lines_cleared),
+		PLAYFIELD_START.x + PLAYFIELD_SIZE.x,
+		PLAYFIELD_START.y + PIECE_QUEUE_SIZE.y + 40,
+		20,
+		WHITE
+	);
 }
 
 void game_loop()
 { 
 	PLAYFIELD_SIZE = (Vector2){ (float)(CELL_SIZE * DEFAULT_COLUMN_COUNT), (float)(CELL_SIZE * (DEFAULT_ROW_COUNT - DEFAULT_CEILING) )};
-	SCREEN_START = (Vector2){ CENTER_OF_SCREEN.x - PLAYFIELD_SIZE.x / 2.0, CENTER_OF_SCREEN.y - PLAYFIELD_SIZE.y / 2.0 };
+	PLAYFIELD_START = (Vector2){ CENTER_OF_SCREEN.x - PLAYFIELD_SIZE.x / 2.0, CENTER_OF_SCREEN.y - PLAYFIELD_SIZE.y / 2.0 };
+	HELD_PIECE_START = (Vector2){PLAYFIELD_START.x - HELD_PIECE_SIZE.x, PLAYFIELD_START.y};
+	PIECE_QUEUE_START = (Vector2){ PLAYFIELD_START.x + PLAYFIELD_SIZE.x, PLAYFIELD_START.y };
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Zetris");
+		SetExitKey(KEY_NULL);
         SetTargetFPS(TARGET_FPS);
         Game game = get_default_initialized_game();
-        while(!WindowShouldClose())
+        while(!WindowShouldClose() && !is_game_over(&game))
         {
-            if(is_game_over(&game)) break;
-            //on_tick(&game, GetFrameTime(), GetActionBitFlags());
-            on_tick(&game, GetFrameTime(), GetActionBitFlags());
-            RenderFrame(&game);
+			if (IsKeyDown(KEY_ESCAPE))
+			{
+				if (!pressedEscapeLastTick)
+				{
+					isPaused = !isPaused;
+					pressedEscapeLastTick = true;
+				}
+			}
+			else
+			{
+				pressedEscapeLastTick = false;
+			}
+			if (!isPaused)
+			{
+				tick(&game, GetFrameTime(), GetActionBitFlags());
+				BeginDrawing();
+				RenderFrame(&game);
+				EndDrawing();
+			}
+			else {
+				BeginDrawing();
+				RenderFrame(&game);
+				int pressedContinue = GuiButton(
+					(Rectangle) {
+						CENTER_OF_SCREEN.x - PAUSE_CONTINUE_BUTTON_SIZE.x * 0.5f,
+						CENTER_OF_SCREEN.y - PAUSE_CONTINUE_BUTTON_SIZE.y * 0.5f,
+						PAUSE_CONTINUE_BUTTON_SIZE.x,
+						PAUSE_CONTINUE_BUTTON_SIZE.y
+					}, "Continue?");
+
+				if (pressedContinue) isPaused = false;
+				EndDrawing();
+			}
         }
     CloseWindow();
 }

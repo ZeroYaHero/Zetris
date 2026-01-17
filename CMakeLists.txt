@@ -11,7 +11,7 @@ set(SRC_DIR "${CMAKE_SOURCE_DIR}/source")
 add_executable(zetris
     "${SRC_DIR}/main.c"
     "${SRC_DIR}/game.c"
-    "${SRC_DIR}/blocks.c"
+    "${SRC_DIR}/piece.c"
     "${SRC_DIR}/playfield.c"
 )
 target_include_directories(zetris PRIVATE "${INCLUDE_DIR}")

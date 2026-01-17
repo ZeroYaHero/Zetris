@@ -11,6 +11,10 @@
 #define PIECE_MAX_SIZE              4
 #define PIECE_CELL_COUNT            4
 
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
 // Pack a Vector2 (of minimum -8 and maximum +7) into a byte. Useful for wall-kicks as they never surpass -2 or +2.
 #define PACK_XY(x, y) \
     ( (uint8_t) ( ( ( (x) & 0x0F ) << 4 ) | ( (y) & 0x0F ) ) )
@@ -21,7 +25,7 @@
 
 // Unpack the Y component from a byte packed wall-kick.
 #define UNPACK_Y(xy) \
-    ( ( ( wall_kick & 0x0F ) ^ 0b1000 ) - 0b1000 );
+    ( ( ( wall_kick & 0x0F ) ^ 0b1000 ) - 0b1000 )
 
 /**
     ^
@@ -42,14 +46,14 @@ typedef enum {
     Z_TYPE,
     J_TYPE,
     L_TYPE
-} PieceType; // Probably 8 bits.
+} PieceType;
 
 // Used for collision checks and rotating. 
 typedef enum {
     NONE_2X2 = 2,
     ROT_3X3,
     ROT_4X4
-} PieceSize; // Probably 8 bits.
+} PieceSize;
 
 typedef uint16_t        PieceCells; // Type-alias for piece cells into a 4x4 bit matrix (16 bit unsigned int). Read from LSB to MSB.
 typedef uint8_t         WallKick;   // Type-alias for wall-kick packed into 8 bit unsigned int.     
@@ -121,12 +125,18 @@ void reset_piece_lock(Piece* piece);
     - If there is a rotation that can be made, we write to our piece's rotation index: (index + 4 +- direction) & 3
 */
 
-#ifdef DEBUG
+//bool        are_piece_row_cells_colliding(PieceCells cells, uint8_t row_cells, uint8_t pos_y);
+
+#if defined(DEBUG) || defined(_DEBUG) || !defined(NDEBUG)
 #include <stdio.h>
 extern const char* STATES;
 void        print_cells(PieceCells cells);    // Print a block using puts(). Used for debugging purposes.
 void        print_all_piece_rotations();    // Print all blocks and their rotations.
 void        print_all_wall_kicks();
 #endif // DEBUG
+
+#ifdef __cplusplus
+}
+#endif // __cplusplus
 
 #endif // PIECE_H
