@@ -53,8 +53,3 @@ uint8_t clear_filled_lines(Playfield* playfield, const uint8_t pos_y)
     playfield->lines_cleared += rows_cleared;
     return rows_cleared;
 }
-
-//bool are_playfield_row_cells_colliding(Playfield* playfield, uint32_t row_cells, uint8_t pos_x, uint8_t pos_y)
-//{
-//    return (playfield->cells[pos_y] >> (pos_x - COLUMN_OFFSET)) & row_cells;
-//}

@@ -61,6 +61,7 @@ void tick(Game* game, double delta_time, ACTION_BIT_FLAGS action_bit_flags)
     // Rotation, Movement, and Gravity
     else
     {
+        // Rotation
         if (unique_action_bit_flags & ACTION_ROTATE_CLOCKWISE || unique_action_bit_flags & ACTION_ROTATE_COUNTER)
         {
             if (attempt_rotate_piece(&game->playfield, &game->controlled_piece, unique_action_bit_flags & ACTION_ROTATE_CLOCKWISE))
@@ -136,15 +137,19 @@ void tick(Game* game, double delta_time, ACTION_BIT_FLAGS action_bit_flags)
         game->controlled_piece.on_ground = true;
         game->controlled_piece.velo_y = 0.0f;
     }
+    else
+    {
+        game->controlled_piece.on_ground = false;
+    }
 
 	// Lock
-	if (game->controlled_piece.on_ground) // on_ground is read from the previous frame AFTER current movement.
+	if (lock_reset_bit_flags & LOCK_RESET_DROP)
 	{
-		if (lock_reset_bit_flags & LOCK_RESET_DROP)
-		{
-			reset_piece_lock(&game->controlled_piece);
-		}
-		else if (lock_reset_bit_flags & (LOCK_RESET_ROTATE | LOCK_RESET_MOVE))
+		reset_piece_lock(&game->controlled_piece);
+	}
+	else if (game->controlled_piece.on_ground)
+	{
+		if (lock_reset_bit_flags & (LOCK_RESET_ROTATE | LOCK_RESET_MOVE))
 		{
 			game->controlled_piece.timer = 0.0f;
 			if (!(game->setting_bit_flags & SETTING_INFINITE_LOCK_DELAY))
@@ -159,7 +164,7 @@ void tick(Game* game, double delta_time, ACTION_BIT_FLAGS action_bit_flags)
 		else
 		{
 			game->controlled_piece.timer += delta_time;
-			if (game->controlled_piece.timer >= LOCK_DELAY)
+            if (game->controlled_piece.timer >= LOCK_DELAY)
 			{
 				on_controlled_piece_place(game);
 			}
@@ -209,35 +214,6 @@ bool are_playfield_piece_cells_colliding(Playfield* const playfield, const Piece
     	}
     }
     return false;
-    //for (uint8_t y = 0; y < piece_size; y++)
-    //{
-    //    uint8_t piece_row_cells = (uint8_t)((piece_cells >> (y * PIECE_MAX_SIZE)) & 0x0F);
-    //    // If not out of bounds
-    //    if ((pos_y + y) < playfield->row_count)
-    //    {
-    //        // If concerned with left wall
-    //        if (pos_x < COLUMN_OFFSET && piece_row_cells & ~(UINT32_MAX << (COLUMN_OFFSET - pos_x)))
-    //         {
-    //            return true;
-    //        }
-    //        // If concerned with right wall
-    //        if (piece_row_cells & (UINT32_MAX << (playfield->column_count - (pos_x - COLUMN_OFFSET))))
-    //        {
-    //            return true;
-    //        }
-    //        // If no wall collision, check for playfield collision.
-    //        if ((playfield->cells[pos_y + y] >> (pos_x - COLUMN_OFFSET)) & piece_row_cells)
-    //        {
-    //            return true;
-    //        }
-    //    }
-    //    // If out of bounds and there are piece row cells
-    //    else if (piece_row_cells)
-    //    {
-    //        return true;
-    //    }
-    //}
-    //return false;
 }
 
 bool are_piece_cells_on_playfield_ground(Playfield* playfield, PieceCells piece_cells, PieceSize piece_size, uint8_t pos_x, uint8_t pos_y)
@@ -260,7 +236,7 @@ bool attempt_rotate_piece(Playfield* playfield, Piece* piece, bool clockwise)
 		int8_t y_wall_kick = 0;
         if (test_index > 0)
         {
-            const WallKick wall_kick = piece->rotation_wall_kicks[rotation_tests_index][test_index - 1];
+            const WallKick wall_kick = (*(piece->rotation_wall_kicks))[rotation_tests_index][test_index - 1];
             x_wall_kick = UNPACK_X(wall_kick);
             y_wall_kick = -UNPACK_Y(wall_kick); // Flip sign since board is "upside down".
         }
@@ -321,19 +297,6 @@ void lock_piece_cells_in_playfield(Playfield* playfield, PieceCells piece_cells,
 			}
 		}
 	}
-
-	//for (uint8_t y = 0; y < piece_size; y++)
-    //{
-    //    uint8_t piece_row_cells = (uint8_t)((piece_cells >> (PIECE_MAX_SIZE * y)) & 0x0F);
-    //    if (pos_x < COLUMN_OFFSET)
-    //    {
-    //        playfield->cells[pos_y + y] |= ((uint32_t)(piece_row_cells) >> (COLUMN_OFFSET - pos_x));
-    //    }
-    //    else
-    //    {
-    //        playfield->cells[pos_y + y] |= ((uint32_t)(piece_row_cells) << (pos_x - COLUMN_OFFSET));
-    //    }
-    //}
 }
 
 void reset_controlled_piece(Game* game, PieceData* optional_piece_data)
@@ -345,7 +308,7 @@ void reset_controlled_piece(Game* game, PieceData* optional_piece_data)
         copy_data_into_piece(&game->controlled_piece, optional_piece_data);
         game->controlled_piece.rotation = 0;
     }
-    set_piece_position(&game->controlled_piece, (game->playfield.column_count / 2) - (game->controlled_piece.size / 2) + COLUMN_OFFSET, 0);
+    set_piece_position(&game->controlled_piece, (game->playfield.column_count / 2) - (game->controlled_piece.size / 2) + COLUMN_OFFSET, PIECE_SPAWN_ROW_OFFSET);
 }
 
 void on_controlled_piece_place(Game* game)
@@ -405,36 +368,104 @@ PieceData* top_piece_queue(Game* game)
 }
 
 const Level ALL_LEVELS[LEVEL_COUNT] = {
-	{
-		.gravity = 1.75f,
-		10
-	},
+    // Level 1
+    {
+        .gravity = 1.5f,
+        10
+    },
+    // Level 2
+    {
+        .gravity = 1.75f,
+        25
+    },
+    // Level 3
+    {
+        .gravity = 2.0f,
+        50
+    },
+    // Level 4
 	{
 		.gravity = 3.0f,
-		25
-	},
-	{
-		.gravity = 5.0f,
-		50
-	},
-	{
-		.gravity = 8.0f,
 		75
 	},
+    // Level 5
 	{
-		.gravity = 10.0f,
+		.gravity = 3.5f,
 		100
 	},
+    // Level 6
+	{
+		.gravity = 4.0f,
+		150
+	},
+    // Level 7
+	{
+		.gravity = 4.75f,
+		200
+	},
+    // Level 8
+	{
+		.gravity = 5.5f,
+		250
+	},
+    // Level 9
+	{
+		.gravity = 6.25f,
+		300
+	},
+    // Level 10
+	{
+		.gravity = 7.0f,
+		350
+	},
+    // Level 11
+	{
+		.gravity = 8.0f,
+		400
+	},
+    // Level 12
+	{
+		.gravity = 9.0f,
+		450
+	},
+    // Level 13
+	{
+		.gravity = 10.0f,
+		500
+	},
+    // Level 14
+	{
+		.gravity = 12.0f,
+		550
+	},
+    // Level 15
+	{
+		.gravity = 13.0f,
+		600
+	},
+    // Level 16
+	{
+		.gravity = 14.0f,
+		675
+	},
+    // Level 17
 	{
 		.gravity = 15.0f,
-		125
+		750
 	},
+    // Level 18
 	{
-		.gravity = 18.0f,
-		175
+		.gravity = 17.5f,
+		825
 	},
+    // Level 19
 	{
 		.gravity = 20.0f,
-		0
+		900
+	},
+    // Level 20
+	{
+		.gravity = 36.0f,
+		1000
 	}
 };

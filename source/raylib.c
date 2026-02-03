@@ -8,13 +8,14 @@
 
 #define SCREEN_WIDTH	800
 #define SCREEN_HEIGHT	450
-#define TARGET_FPS		240
+#define TARGET_FPS		60
 
 const int		CELL_SIZE = 25;
 const Vector2	CENTER_OF_SCREEN = { SCREEN_WIDTH * 0.5f, SCREEN_HEIGHT * 0.5f};
 const Vector2	HELD_PIECE_SIZE = { 200.0f, 200.0f };
 const Vector2	PIECE_QUEUE_SIZE = { 200.0f, 200.0f };
-const Vector2	PAUSE_CONTINUE_BUTTON_SIZE = { 250.0f, 125.0f };
+const Vector2	PAUSE_CONTINUE_BUTTON_SIZE = { 215.0f, 75.0f };
+const Vector2	RESTART_BUTTON_SIZE = { 215.0f, 75.0f };
 Vector2			PLAYFIELD_START;
 Vector2			PLAYFIELD_SIZE; 
 Vector2			HELD_PIECE_START;
@@ -140,6 +141,107 @@ void RenderFrame(const Game* game)
 	);
 }
 
+void OnPlay(Game* game)
+{
+	tick(game, GetFrameTime(), GetActionBitFlags());
+
+	BeginDrawing();
+	RenderFrame(game);
+	EndDrawing();
+}
+
+bool HandleAndCheckPause()
+{
+	if (IsKeyDown(KEY_ESCAPE))
+	{
+		if (!pressedEscapeLastTick)
+		{
+			isPaused = !isPaused;
+			pressedEscapeLastTick = true;
+		}
+	}
+	else
+	{
+		pressedEscapeLastTick = false;
+	}
+	return isPaused;
+}
+
+void OnPause(Game* game)
+{
+	BeginDrawing();
+	RenderFrame(game);
+	int pressedContinue = GuiButton(
+		(Rectangle) {
+		CENTER_OF_SCREEN.x - PAUSE_CONTINUE_BUTTON_SIZE.x * 0.5f,
+		CENTER_OF_SCREEN.y - PAUSE_CONTINUE_BUTTON_SIZE.y - 10.0f,
+		PAUSE_CONTINUE_BUTTON_SIZE.x,
+		PAUSE_CONTINUE_BUTTON_SIZE.y},
+		"Continue"
+	);
+	int pressedRestart = GuiButton(
+		(Rectangle) {
+		CENTER_OF_SCREEN.x - RESTART_BUTTON_SIZE.x * 0.5f,
+		CENTER_OF_SCREEN.y + 10.0f,
+		RESTART_BUTTON_SIZE.x,
+		RESTART_BUTTON_SIZE.y},
+		"Restart"
+	);
+	EndDrawing();
+
+	if (pressedContinue) isPaused = false;
+	if (pressedRestart)
+	{
+		isPaused = false;
+		*game = get_default_initialized_game(); // Temporary
+	}
+}
+
+void OnGameOver(Game* game)
+{
+	BeginDrawing();
+	RenderFrame(game);
+	const char* gameOverText = "GAME OVER!";
+	int gameOverTextWidth = MeasureText(gameOverText, 50);
+	DrawText(
+		gameOverText,
+		CENTER_OF_SCREEN.x - gameOverTextWidth * 0.5f,
+		CENTER_OF_SCREEN.y - 150,
+		50,
+		WHITE
+	);
+
+	const char* scoreText = TextFormat("SCORE: %d", game->score);
+	int scoreTextWidth = MeasureText(scoreText, 20);
+	DrawText(
+		scoreText,
+		CENTER_OF_SCREEN.x - scoreTextWidth * 0.5f,
+		CENTER_OF_SCREEN.y - 100,
+		20,
+		WHITE
+	);
+
+	int pressedRestart = GuiButton(
+		(Rectangle) {
+		CENTER_OF_SCREEN.x - RESTART_BUTTON_SIZE.x * 0.5f,
+		CENTER_OF_SCREEN.y - RESTART_BUTTON_SIZE.y * 0.5f,
+		RESTART_BUTTON_SIZE.x,
+		RESTART_BUTTON_SIZE.y},
+		"Restart"
+	);
+	EndDrawing();
+
+	if (pressedRestart)
+	{
+		*game = get_default_initialized_game();
+	}
+}
+
+//void OnTitleScreen()
+//{
+//
+//}
+
 void game_loop()
 { 
 	PLAYFIELD_SIZE = (Vector2){ (float)(CELL_SIZE * DEFAULT_COLUMN_COUNT), (float)(CELL_SIZE * (DEFAULT_ROW_COUNT - DEFAULT_CEILING) )};
@@ -147,44 +249,30 @@ void game_loop()
 	HELD_PIECE_START = (Vector2){PLAYFIELD_START.x - HELD_PIECE_SIZE.x, PLAYFIELD_START.y};
 	PIECE_QUEUE_START = (Vector2){ PLAYFIELD_START.x + PLAYFIELD_SIZE.x, PLAYFIELD_START.y };
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Zetris");
-		SetExitKey(KEY_NULL);
-        SetTargetFPS(TARGET_FPS);
-        Game game = get_default_initialized_game();
-        while(!WindowShouldClose() && !is_game_over(&game))
-        {
-			if (IsKeyDown(KEY_ESCAPE))
-			{
-				if (!pressedEscapeLastTick)
-				{
-					isPaused = !isPaused;
-					pressedEscapeLastTick = true;
-				}
-			}
-			else
-			{
-				pressedEscapeLastTick = false;
-			}
-			if (!isPaused)
-			{
-				tick(&game, GetFrameTime(), GetActionBitFlags());
-				BeginDrawing();
-				RenderFrame(&game);
-				EndDrawing();
-			}
-			else {
-				BeginDrawing();
-				RenderFrame(&game);
-				int pressedContinue = GuiButton(
-					(Rectangle) {
-						CENTER_OF_SCREEN.x - PAUSE_CONTINUE_BUTTON_SIZE.x * 0.5f,
-						CENTER_OF_SCREEN.y - PAUSE_CONTINUE_BUTTON_SIZE.y * 0.5f,
-						PAUSE_CONTINUE_BUTTON_SIZE.x,
-						PAUSE_CONTINUE_BUTTON_SIZE.y
-					}, "Continue?");
-
-				if (pressedContinue) isPaused = false;
-				EndDrawing();
-			}
-        }
+	//#if defined(DEBUG) || defined(_DEBUG) || !defined(NDEBUG)
+	//if (FileExists("ZETRIS_LOGO.png"))
+	//{
+	//	Image zetrisLogo = LoadImage("ZETRIS_LOGO.png");
+	//	ExportImageAsCode(zetrisLogo, "raylibzetrislogo.h");
+	//}
+	//#endif // DEBUG
+	SetExitKey(KEY_NULL);
+	SetTargetFPS(TARGET_FPS);
+	Game game = get_default_initialized_game();
+	while (!WindowShouldClose())
+	{
+		if (HandleAndCheckPause())
+		{
+			OnPause(&game);
+		}
+		else if (is_game_over(&game))
+		{
+			OnGameOver(&game);
+		}
+		else
+		{
+			OnPlay(&game);
+		}
+	}
     CloseWindow();
 }

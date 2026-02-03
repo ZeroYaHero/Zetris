@@ -5,7 +5,7 @@ PieceCells get_rotated_piece_cells(const PieceCells in_cells, const PieceSize si
     PieceCells out_cells = 0;
 	for (uint8_t y = 0; y < size; y++)
 	{
-		const uint8_t rotated_x = clockwise ? y : (size - 1 - y);
+		const uint8_t rotated_x = clockwise ? y : (size - y - 1);
 		for (uint8_t x = 0; x < size; x++)
 		{
 			const uint8_t rotated_y = clockwise ? (size - 1 - x) : x;
@@ -299,12 +299,6 @@ const PieceRotationWallKicks WALL_KICKS_I = {
     },
 };
 
-//bool are_piece_row_cells_colliding(PieceCells cells, uint8_t row_cells, uint8_t pos_y)
-//{
-//    return (cells >> (PIECE_MAX_SIZE * pos_y)) & (row_cells) & 0x0F;
-//}
-
-
 #if defined(DEBUG) || defined(_DEBUG) || !defined(NDEBUG)
 const char* STATES = "0R2L";
 
@@ -333,19 +327,19 @@ void print_all_piece_rotations()
         {
             //TODO: need to fix lol.
             printf("0->R\n");
-            cells = get_rotated_piece_cells(&cells, piece_data.size, true);
+            cells = get_rotated_piece_cells(cells, piece_data.size, true);
             print_cells(cells);
 
             printf("R->2\n");
-            cells = get_rotated_piece_cells(&cells, piece_data.size, true);
+            cells = get_rotated_piece_cells(cells, piece_data.size, true);
             print_cells(cells);
 
             printf("2->L\n");
-            cells = get_rotated_piece_cells(&cells, piece_data.size, true);
+            cells = get_rotated_piece_cells(cells, piece_data.size, true);
             print_cells(cells);
 
             printf("0->L\n");
-            cells = get_rotated_piece_cells(&cells, piece_data.size, true);
+            cells = get_rotated_piece_cells(cells, piece_data.size, true);
             print_cells(cells);
         }
     }

@@ -17,15 +17,15 @@ extern "C" {
 
 // Pack a Vector2 (of minimum -8 and maximum +7) into a byte. Useful for wall-kicks as they never surpass -2 or +2.
 #define PACK_XY(x, y) \
-    ( (uint8_t) ( ( ( (x) & 0x0F ) << 4 ) | ( (y) & 0x0F ) ) )
+    ( (uint8_t) ( ( ( (uint8_t)( (x) & 0x0F ) ) << 4 ) | (uint8_t)( (y) & 0x0F ) ) )
 
 // Unpack the X component from a byte packed wall-kick.
 #define UNPACK_X(xy) \
-    ( ( ( ( wall_kick >> 4 ) & 0x0F ) ^ 0b1000 ) - 0b1000 )
+    ( ( ( ( xy >> 4 ) & 0x0F ) ^ 0b1000 ) - 0b1000 )
 
 // Unpack the Y component from a byte packed wall-kick.
 #define UNPACK_Y(xy) \
-    ( ( ( wall_kick & 0x0F ) ^ 0b1000 ) - 0b1000 )
+    ( ( ( xy & 0x0F ) ^ 0b1000 ) - 0b1000 )
 
 /**
     ^
@@ -124,8 +124,6 @@ void reset_piece_lock(Piece* piece);
     - If there is no rotation that can be made, no rotation is made (simple as that!)
     - If there is a rotation that can be made, we write to our piece's rotation index: (index + 4 +- direction) & 3
 */
-
-//bool        are_piece_row_cells_colliding(PieceCells cells, uint8_t row_cells, uint8_t pos_y);
 
 #if defined(DEBUG) || defined(_DEBUG) || !defined(NDEBUG)
 #include <stdio.h>

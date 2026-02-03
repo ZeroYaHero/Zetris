@@ -3,7 +3,7 @@
 #include <time.h>
 
 #include "engine.h"
-#include "game.h"
+#include "game.h" // Only including this for the debug stuff...messy.
 
 int main(int argc, char* argv[])
 {

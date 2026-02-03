@@ -37,6 +37,8 @@ extern "C" {
 #define HORIZONTAL_VELOCITY         10.0f
 #define VERTICAL_VELOCITY           5.0f
 
+#define PIECE_SPAWN_ROW_OFFSET      1
+
 #define LEVEL_COUNT                 20
 
 #define SIGN(val) \
