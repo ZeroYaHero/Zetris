@@ -10,6 +10,11 @@
 #define SCREEN_HEIGHT	450
 #define TARGET_FPS		60
 
+// Source: https://youtu.be/w0FSHNzSr_M?si=FdDbWrEIgIq2gdsi
+#if defined(_WIN32) && !defined(_DEBUG)
+#pragma comment(linker, "/SUBSYSTEM:windows /ENTRY:mainCRTStartup")
+#endif
+
 const int		CELL_SIZE = 25;
 const Vector2	CENTER_OF_SCREEN = { SCREEN_WIDTH * 0.5f, SCREEN_HEIGHT * 0.5f};
 const Vector2	HELD_PIECE_SIZE = { 200.0f, 200.0f };
