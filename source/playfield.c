@@ -12,7 +12,7 @@ bool is_playfield_cell(const Playfield* playfield, const uint8_t pos_x, const ui
     return is_outside_bounds(playfield, pos_x, pos_y) || (playfield->cells[pos_y] & (1U << (pos_x - COLUMN_OFFSET)));
 }
 
-bool are_cells_above_ceiling(const Playfield* const playfield)
+bool are_cells_above_ceiling(const Playfield* playfield)
 {
 	for (uint8_t y = playfield->ceiling; y > 0; y--)
 	{

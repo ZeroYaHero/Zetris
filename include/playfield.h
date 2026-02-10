@@ -28,9 +28,9 @@ typedef struct {
     uint8_t ceiling;            // 1 byte
 } Playfield;
 
-bool    is_outside_bounds(Playfield* playfield, uint8_t, uint8_t pos_y);                    // If position is outside bounds.
-bool    is_playfield_cell(Playfield* playfield, uint8_t pos_x, uint8_t pos_y);              // Checks if cell or empty.
-bool    are_cells_above_ceiling(Playfield* playfield);                                      // Determines if cells in the playfield are above the ceiling.
+bool    is_outside_bounds(const Playfield* playfield, const uint8_t, const uint8_t pos_y);                    // If position is outside bounds.
+bool    is_playfield_cell(const Playfield* playfield, const uint8_t pos_x, const uint8_t pos_y);              // Checks if cell or empty.
+bool    are_cells_above_ceiling(const Playfield* playfield);                                      // Determines if cells in the playfield are above the ceiling.
 bool    attempt_add_playfield_cell_at(Playfield* playfield, uint8_t pos_x, uint8_t pos_y);  // Write bit (cell) in playfield
 uint8_t clear_filled_lines(Playfield* playfield, uint8_t bottom_offset);                    // Starts from bottom and moves up to clear rows. Returns the number of rows it cleared for given playfield.
 
